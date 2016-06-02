@@ -159,6 +159,7 @@ static int GetMimeList(lua_State *luastate, Flow *flow)
     }
     if(field->name == NULL || field->name_len == 0) {
         return LuaCallbackError(luastate, "Error: field has no name");
+    }
     /* Counter of MIME fields found */
     int num = 1;
     /* loop trough the list of mimeFields, printing each name found */
@@ -347,65 +348,6 @@ static int SMTPGetRcptList(lua_State *luastate)
         FLOWLOCK_UNLOCK(flow);
     } else {
         GetRcptList(luastate, flow);
-    }
-    /* return 1 since we allways push one table to luastate */
-    return 1;
-}
-
-/**
- * \brief intern function used by SMTPGetAttachmentInfo
- *
- * \params luastate, luastate for internal communication towards the
- * luascripting engine.
- *
- * \retval 1 if the table is pushed to lua.
- * Returns error int and msg pushed to luastate stack if error occurs
- */
-
-static int GetAttachmentInfo(lua_State *luastate, Flow *flow)
-{
-    /* Extract SMTPState from flow */
-    SMTPState *state = (SMTPState *) FlowGetAppState(flow);
-    if(state == NULL) {
-        return LuaCallbackError(luastate, "error: state not found");
-    }
-    /* get FileContainer in SMTPState */
-    FileContainer *file_con = state->files_ts;
-    if(file_con == NULL) {
-        return LuaCallbackError(luastate, "error: no files found");
-    }
-    /* point to start of list for iterating trough */
-    File *file = file_con->head;
-    if(file == NULL) {
-        return LuaCallbackError(luastate, "error: no file(s) in container");
-    }
-    int u = 1;
-    /* create new table for placement of findings */
-    lua_newtable(luastate);
-    /* loop through and push filename to luastate table on stack */
-    while(file != NULL) {
-        lua_pushinteger(luastate, u++);
-        lua_newtable(luastate);
-        lua_pushstring(luastate, "filename");
-        LuaPushStringBuffer(luastate, file->name, file->name_len);
-        lua_settable(luastate, -3);
-        /* creating for loop temp vars */
-#ifdef HAVE_NSS
-        char smd5[256];
-        int i;
-        size_t x;
-        /* loops through md5 int array, ports it to char*/
-        for (i = 0, x = 0; x < sizeof(file->md5); x++) {
-            i += snprintf(&smd5[i], 255-i, "%02x", file->md5[x]);
-        }
-        /* push md5 char array to luastate stack */
-        lua_pushstring(luastate, "md5-field");
-        lua_pushstring(luastate, smd5);
-        lua_settable(luastate, -3);
-        /* set self to next in list */
-#endif
-        lua_settable(luastate, -3);
-        file = file->next;
     }
     /* return 1 since we allways push one table to luastate */
     return 1;
